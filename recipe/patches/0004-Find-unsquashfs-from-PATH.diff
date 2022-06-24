@@ -1,0 +1,15 @@
+diff --git a/internal/pkg/image/unpacker/squashfs.go b/internal/pkg/image/unpacker/squashfs.go
+index f977880eb..7aaf72db8 100644
+--- a/internal/pkg/image/unpacker/squashfs.go
++++ b/internal/pkg/image/unpacker/squashfs.go
+@@ -67,7 +67,10 @@ type Squashfs struct {
+ // NewSquashfs initializes and returns a Squahfs unpacker instance
+ func NewSquashfs() *Squashfs {
+ 	s := &Squashfs{}
++	defaultPath := os.Getenv("PATH")
++	os.Setenv("PATH", os.Getenv("USER_PATH"))
+ 	s.UnsquashfsPath, _ = bin.FindBin("unsquashfs")
++	os.Setenv("PATH", defaultPath)
+ 	return s
+ }
+ 

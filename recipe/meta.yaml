@@ -1,0 +1,82 @@
+{% set version = "1.0.2" %}
+{% set exec = "apptainer" %}
+
+package:
+  name: {{ exec }}
+  version: {{ version }}
+
+source:
+  - folder: src/github.com/apptainer/{{ exec }}
+    url: https://github.com/apptainer/{{ exec }}/releases/download/v{{ version }}/{{ exec }}-{{ version }}.tar.gz
+    sha256: 2d7a9d0a76d5574459d249c3415e21423980d9154ce85e8c34b0600782a7dfd3
+    patches:
+      - patches/0003-Use-external-CNI.patch
+      - patches/0004-Find-unsquashfs-from-PATH.diff
+      - patches/set-version-from-env.patch
+build:
+  number: 1
+  skip: true  # [not linux]
+  # The binary is made runtime relocatable using the included patch
+  detect_binary_files_with_prefix: false
+
+requirements:
+  build:
+    - {{ compiler('c') }}
+    - {{ compiler('cxx') }}
+    - go-cgo >=1.18
+    - sysroot_linux-64
+    - libuuid
+    - gpgme
+    - libseccomp
+    - pkg-config
+    - git
+    - make
+    - sed
+  host:
+    - conda-forge::libuuid  # [linux]
+    - conda-forge::libarchive
+    - conda-forge::libseccomp  # [linux]
+    - conda-forge::openssl
+    - conda-forge::glib
+  run:
+    - conda-forge::squashfs-tools >=4.4  # [linux]
+    - conda-forge::cni-plugins >=1.0
+
+test:
+  commands:
+    - {{ exec }} --help
+    - {{ exec }} --version
+    - {{ exec }} --version | grep {{ version }}
+
+    # Ensure we are using conda's CNI
+    - test ! -d $PREFIX/libexec/{{ exec }}/cni
+    - test -d $PREFIX/lib/cni
+
+    - test ! -d $PREFIX/etc/{{ exec }}/network
+    - test -f $PREFIX/etc/cni/net.d/00_bridge.conflist
+
+about:
+  home: https://apptainer.org/
+  license: BSD-3-Clause
+  license_file: src/github.com/apptainer/apptainer/LICENSE.md
+  summary: 'Apptainer: Application containers for Linux'
+
+  description: |
+    Apptainer is a container platform focused on supporting "Mobility of
+    Compute"
+
+    Mobility of Compute encapsulates the development to compute model where
+    developers can work in an environment of their choosing and creation and
+    when the developer needs additional compute resources, this environment
+    can easily be copied and executed on other platforms. Additionally as the
+    primary use case for Apptainer is targeted towards computational
+    portability, many of the barriers to entry of other container solutions do
+    not apply to Singularity making it an ideal solution for users (both
+    computational and non-computational) and HPC centers.
+
+  dev_url: https://github.com/apptainer/apptainer/blob/main/CONTRIBUTING.md
+  doc_url: https://apptainer.org/docs
+
+extra:
+  recipe-maintainers:
+    - phupe

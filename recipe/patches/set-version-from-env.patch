@@ -1,0 +1,15 @@
+diff --git a/scripts/get-version b/scripts/get-version
+index d8362c8fb..7a829a897 100755
+--- a/scripts/get-version
++++ b/scripts/get-version
+@@ -4,6 +4,10 @@
+ #   For website terms of use, trademark policy, privacy policy and other
+ #   project policies see https://lfprojects.org/policies
+ 
++set -eu
++echo ${PKG_VERSION}
++exit 0
++
+ # optionally take commit-ish as argument for debugging purposes
+ head=$1
+ 
