@@ -10,9 +10,11 @@ source:
     url: https://github.com/apptainer/{{ exec }}/releases/download/v{{ version }}/{{ exec }}-{{ version }}.tar.gz
     sha256: 2d7a9d0a76d5574459d249c3415e21423980d9154ce85e8c34b0600782a7dfd3
     patches:
-      - patches/0003-Use-external-CNI.patch
-      - patches/0004-Find-unsquashfs-from-PATH.diff
-      - patches/set-version-from-env.patch
+      - patches/0001-set-version-from-env.diff
+      - patches/0002-squashfs-tools-apptainer-conf.diff
+      - patches/0003-find-unsquashfs-from-PATH.diff
+      - patches/0003b-find-unsquashfs-from-PATH.diff
+      - patches/0004-use-external-CNI.diff
 build:
   number: 1
   skip: true  # [not linux]
