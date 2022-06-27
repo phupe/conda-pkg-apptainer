@@ -13,7 +13,6 @@ source:
       - patches/0001-set-version-from-env.diff
       - patches/0002-squashfs-tools-apptainer-conf.diff
       - patches/0003-find-unsquashfs-from-PATH.diff
-      - patches/0003b-find-unsquashfs-from-PATH.diff
       - patches/0004-use-external-CNI.diff
 build:
   number: 1
@@ -35,14 +34,19 @@ requirements:
     - make
     - sed
   host:
-    - conda-forge::libuuid  # [linux]
+    - conda-forge::glib
+    - conda-forge::openssl
     - conda-forge::libarchive
     - conda-forge::libseccomp  # [linux]
-    - conda-forge::openssl
-    - conda-forge::glib
+    - conda-forge::libuuid  # [linux]
   run:
-    - conda-forge::squashfs-tools >=4.4  # [linux]
     - conda-forge::cni-plugins >=1.0
+    - conda-forge::glib
+    - conda-forge::libarchive
+    - conda-forge::libseccomp  # [linux]
+    - conda-forge::libuuid  # [linux]
+    - conda-forge::openssl
+    - conda-forge::squashfs-tools >=4.4  # [linux]
 
 test:
   commands:

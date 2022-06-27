@@ -1,10 +1,76 @@
+diff --git a/cmd/internal/cli/actions_linux.go b/cmd/internal/cli/actions_linux.go
+index 8090683ca..1b77a0427 100644
+--- a/cmd/internal/cli/actions_linux.go
++++ b/cmd/internal/cli/actions_linux.go
+@@ -55,7 +55,7 @@ import (
+ // convertImage extracts the image found at filename to directory dir within a temporary directory
+ // tempDir. If the unsquashfs binary is not located, the binary at unsquashfsPath is used. It is
+ // the caller's responsibility to remove rootfsDir when no longer needed.
+-func convertImage(filename string, unsquashfsPath string, tmpDir string) (rootfsDir, imageDir string, err error) {
++func convertImage(filename string, unsquashfsPath string, tmpDir string, userPath string) (rootfsDir, imageDir string, err error) {
+ 	img, err := imgutil.Init(filename, false)
+ 	if err != nil {
+ 		return "", "", fmt.Errorf("could not open image %s: %s", filename, err)
+@@ -85,7 +85,7 @@ func convertImage(filename string, unsquashfsPath string, tmpDir string) (rootfs
+ 	if err != nil {
+ 		return "", "", fmt.Errorf("could not extract root filesystem: %s", err)
+ 	}
+-	s := unpacker.NewSquashfs()
++	s := unpacker.NewSquashfs(userPath)
+ 	if !s.HasUnsquashfs() && unsquashfsPath != "" {
+ 		s.UnsquashfsPath = unsquashfsPath
+ 	}
+@@ -716,7 +716,8 @@ func execStarter(cobraCmd *cobra.Command, image string, args []string, name stri
+ 			}
+ 			sylog.Verbosef("User namespace requested, convert image %s to sandbox", image)
+ 			sylog.Infof("Converting SIF file to temporary sandbox...")
+-			rootfsDir, imageDir, err := convertImage(image, unsquashfsPath, tmpDir)
++			userPath := os.Getenv("USER_PATH")
++			rootfsDir, imageDir, err := convertImage(image, unsquashfsPath, tmpDir, userPath)
+ 			if err != nil {
+ 				sylog.Fatalf("while extracting %s: %s", image, err)
+ 			}
+diff --git a/internal/pkg/build/sources/packer_sif.go b/internal/pkg/build/sources/packer_sif.go
+index 0dcc49306..e3f7e40d7 100644
+--- a/internal/pkg/build/sources/packer_sif.go
++++ b/internal/pkg/build/sources/packer_sif.go
+@@ -55,7 +55,7 @@ func unpackSIF(b *types.Bundle, img *image.Image) (err error) {
+ 			return fmt.Errorf("could not extract root filesystem: %s", err)
+ 		}
+ 
+-		s := unpacker.NewSquashfs()
++		s := unpacker.NewSquashfs("")
+ 
+ 		// extract root filesystem
+ 		if err := s.ExtractAll(reader, b.RootfsPath); err != nil {
+diff --git a/internal/pkg/build/sources/packer_squashfs.go b/internal/pkg/build/sources/packer_squashfs.go
+index 88359a028..c1d18adee 100644
+--- a/internal/pkg/build/sources/packer_squashfs.go
++++ b/internal/pkg/build/sources/packer_squashfs.go
+@@ -33,7 +33,7 @@ func (p *SquashfsPacker) Pack(context.Context) (*types.Bundle, error) {
+ 		return nil, fmt.Errorf("could not extract root filesystem: %s", err)
+ 	}
+ 
+-	s := unpacker.NewSquashfs()
++	s := unpacker.NewSquashfs("")
+ 
+ 	// extract root filesystem
+ 	if err := s.ExtractAll(reader, p.b.RootfsPath); err != nil {
 diff --git a/internal/pkg/image/unpacker/squashfs.go b/internal/pkg/image/unpacker/squashfs.go
-index f977880eb..7aaf72db8 100644
+index 988782f4a..501e77e91 100644
 --- a/internal/pkg/image/unpacker/squashfs.go
 +++ b/internal/pkg/image/unpacker/squashfs.go
-@@ -67,7 +67,10 @@ type Squashfs struct {
+@@ -64,9 +64,17 @@ type Squashfs struct {
+ }
+ 
  // NewSquashfs initializes and returns a Squahfs unpacker instance
- func NewSquashfs() *Squashfs {
+-func NewSquashfs() *Squashfs {
++func NewSquashfs(envPath string) *Squashfs {
++	if envPath != "" {
++		oldPath := os.Getenv("PATH")
++		os.Setenv("PATH", envPath)
++		defer os.Setenv("PATH", oldPath)
++	}
  	s := &Squashfs{}
 +	defaultPath := os.Getenv("PATH")
 +	os.Setenv("PATH", os.Getenv("USER_PATH"))
@@ -13,3 +79,100 @@ index f977880eb..7aaf72db8 100644
  	return s
  }
  
+diff --git a/internal/pkg/image/unpacker/squashfs_apptainer.go b/internal/pkg/image/unpacker/squashfs_apptainer.go
+index 1b270bb10..07808a9fc 100644
+--- a/internal/pkg/image/unpacker/squashfs_apptainer.go
++++ b/internal/pkg/image/unpacker/squashfs_apptainer.go
+@@ -43,10 +43,10 @@ type libBind struct {
+ 
+ // getLibraryBinds returns the library bind mounts required by an elf binary.
+ // The binary path must be absolute.
+-func getLibraryBinds(binary string) ([]libBind, error) {
++func getLibraryBinds(binary string) (string, []libBind, error) {
+ 	exe, err := elf.Open(binary)
+ 	if err != nil {
+-		return nil, err
++		return "", nil, err
+ 	}
+ 	defer exe.Close()
+ 
+@@ -60,9 +60,9 @@ func getLibraryBinds(binary string) ([]libBind, error) {
+ 		buf := make([]byte, 4096)
+ 		n, err := p.ReadAt(buf, 0)
+ 		if err != nil && err != io.EOF {
+-			return nil, err
++			return interp, nil, err
+ 		} else if n > cap(buf) {
+-			return nil, fmt.Errorf("buffer too small to store interpreter")
++			return interp, nil, fmt.Errorf("buffer too small to store interpreter")
+ 		}
+ 		// trim null byte to avoid an execution failure with
+ 		// an invalid argument error
+@@ -71,7 +71,7 @@ func getLibraryBinds(binary string) ([]libBind, error) {
+ 
+ 	// this is a static binary, nothing to do
+ 	if interp == "" {
+-		return []libBind{}, nil
++		return interp, []libBind{}, nil
+ 	}
+ 
+ 	// run interpreter to list library dependencies for the
+@@ -92,10 +92,10 @@ func getLibraryBinds(binary string) ([]libBind, error) {
+ 	cmd.Env = []string{}
+ 
+ 	if err := cmd.Run(); err != nil {
+-		return nil, fmt.Errorf("while getting library dependencies: %s\n%s", err, errBuf.String())
++		return interp, nil, fmt.Errorf("while getting library dependencies: %s\n%s", err, errBuf.String())
+ 	}
+-
+-	return parseLibraryBinds(buf)
++	bufVal, err := parseLibraryBinds(buf)
++	return interp, bufVal, err
+ }
+ 
+ // parseLibrary binds parses `ld-linux-x86-64.so.2 --list <binary>` output.
+@@ -215,7 +215,7 @@ func unsquashfsSandboxCmd(unsquashfs string, dest string, filename string, filte
+ 	}
+ 
+ 	// get the library dependencies of unsquashfs
+-	libs, err := getLibraryBinds(unsquashfs)
++	interp, libs, err := getLibraryBinds(unsquashfs)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -268,6 +268,9 @@ func unsquashfsSandboxCmd(unsquashfs string, dest string, filename string, filte
+ 	args = append(args, rootfs)
+ 
+ 	// unsquashfs execution arguments
++	if interp != "" {
++		args = append(args, interp)
++	}
+ 	args = append(args, unsquashfs)
+ 	args = append(args, opts...)
+ 
+diff --git a/internal/pkg/image/unpacker/squashfs_test.go b/internal/pkg/image/unpacker/squashfs_test.go
+index 96f11e0f7..ca4e35a85 100644
+--- a/internal/pkg/image/unpacker/squashfs_test.go
++++ b/internal/pkg/image/unpacker/squashfs_test.go
+@@ -55,7 +55,7 @@ func TestSquashfs(t *testing.T) {
+ }
+ 
+ func testSquashfs(t *testing.T, tmpParent string) {
+-	s := NewSquashfs()
++	s := NewSquashfs("")
+ 
+ 	if !s.HasUnsquashfs() {
+ 		t.Skip("unsquashfs not found")
+diff --git a/pkg/image/image_test.go b/pkg/image/image_test.go
+index 1e3d17f07..758526657 100644
+--- a/pkg/image/image_test.go
++++ b/pkg/image/image_test.go
+@@ -70,7 +70,7 @@ func checkPartition(reader io.Reader) error {
+ 	}
+ 	defer os.RemoveAll(dir)
+ 
+-	s := unpacker.NewSquashfs()
++	s := unpacker.NewSquashfs("")
+ 	if s.HasUnsquashfs() {
+ 		if err := s.ExtractFiles([]string{extracted}, reader, dir); err != nil {
+ 			return fmt.Errorf("extraction failed: %s", err)
