@@ -64,7 +64,7 @@ test:
 
 about:
   home: https://apptainer.org/
-  license: BSD-3
+  license: BSD-3-Clause
   license_file: src/github.com/apptainer/apptainer/LICENSE.md
   summary: 'Apptainer: Application containers for Linux'
 
