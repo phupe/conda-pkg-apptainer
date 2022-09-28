@@ -1,4 +1,4 @@
-{% set version = "1.0.2" %}
+{% set version = "1.0.3" %}
 {% set exec = "apptainer" %}
 
 package:
@@ -8,11 +8,12 @@ package:
 source:
   - folder: src/github.com/apptainer/{{ exec }}
     url: https://github.com/apptainer/{{ exec }}/releases/download/v{{ version }}/{{ exec }}-{{ version }}.tar.gz
-    sha256: 2d7a9d0a76d5574459d249c3415e21423980d9154ce85e8c34b0600782a7dfd3
+    sha256: 2ff0efd427faba21edad6e9fd57acc1b51db964a8ce57e9d553a1a347cfe4d66
     patches:
       - patches/0001-set-version-from-env.diff
       - patches/0002-squashfs-tools-apptainer-conf.diff
       - patches/0003-use-external-CNI.diff
+
 build:
   number: 1
   skip: true  # [not linux]
