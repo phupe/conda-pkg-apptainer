@@ -1,4 +1,4 @@
-{% set version = "1.1.0" %}
+{% set version = "1.1.2" %}
 {% set exec = "apptainer" %}
 
 package:
@@ -8,7 +8,7 @@ package:
 source:
   - folder: src/github.com/apptainer/{{ exec }}
     url: https://github.com/apptainer/{{ exec }}/releases/download/v{{ version }}/{{ exec }}-{{ version }}.tar.gz
-    sha256: 1772f25c8770f976abb82c29053b77183930426a83eb3e43b9f8068c3e88ac30
+    sha256: cfb7a26ac752a319ed70e58938155f257d14f1f414167bbe85ab8b941966d563
     patches:
       - patches/0001-set-version-from-env.diff
       - patches/0003-use-external-CNI.diff
