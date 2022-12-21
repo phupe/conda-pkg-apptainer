@@ -10,7 +10,6 @@ source:
     url: https://github.com/apptainer/{{ exec }}/releases/download/v{{ version }}/{{ exec }}-{{ version }}.tar.gz
     sha256: b1ab9d5842002803e66da8f456ee00f352ea2bb43436d5b668f19ef7475ed4a5
     patches:
-      - patches/0001-set-version-from-env.diff
       - patches/0003-use-external-CNI.diff
 build:
   number: 1
