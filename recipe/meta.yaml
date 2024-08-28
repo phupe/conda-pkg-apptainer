@@ -1,4 +1,4 @@
-{% set version = "1.3.2" %}
+{% set version = "1.3.3" %}
 {% set exec = "apptainer" %}
 
 package:
@@ -8,7 +8,7 @@ package:
 source:
   - folder: src/github.com/apptainer/{{ exec }}
     url: https://github.com/apptainer/{{ exec }}/releases/download/v{{ version }}/{{ exec }}-{{ version }}.tar.gz
-    sha256: 483910727e1a15843b93d9f2db1fc87e27804de9c74da13cc32cd4bd0d35e079
+    sha256: 94a274ab4898cdb131f4e3867c4e15f7e16bc2823303d2afcbafee0242f0838d
     patches:
       - patches/0003-use-external-CNI.diff
 build:
@@ -21,7 +21,7 @@ requirements:
   build:
     - {{ compiler('c') }}
     - {{ compiler('cxx') }}
-    - go-cgo >=1.18
+    - go-cgo >=1.21
     - sysroot_linux-64
     - libuuid
     - gpgme
